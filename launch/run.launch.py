@@ -2,8 +2,11 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, Command
+from launch.substitutions import LaunchConfiguration, Command, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.actions import PushRosNamespace
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import IncludeLaunchDescription
 
 
 def generate_launch_description():
@@ -40,6 +43,14 @@ def generate_launch_description():
             }]
         ),
         Node(
+            package="laser_filters",
+            executable="scan_to_scan_filter_chain",
+            parameters=[
+                PathJoinSubstitution([
+                    get_package_share_directory("laser_filters"),
+                    "examples", "footprint_filter_example.yaml",
+                ]),
+        Node(
             package='lio_sam',
             executable='lio_sam_imuPreintegration',
             name='lio_sam_imuPreintegration',
@@ -73,5 +84,13 @@ def generate_launch_description():
             name='rviz2',
             arguments=['-d', rviz_config_file],
             output='screen'
-        )
+        ), 
+        PushRosNamespace('slp_14h_001'),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory('slp14h_description'),
+                    'launch/description.launch.py'))
+        ),
+
     ])

@@ -360,10 +360,12 @@ public:
         {
             sensor_msgs::msg::Imu thisImuMsg = imuQueue[i];
             double currentImuTime = stamp2Sec(thisImuMsg.header.stamp);
+            if (imuType) {
+                // get roll, pitch, and yaw estimation for this scan
+                if (currentImuTime <= timeScanCur)
+                    imuRPY2rosRPY(&thisImuMsg, &cloudInfo.imu_roll_init, &cloudInfo.imu_pitch_init, &cloudInfo.imu_yaw_init);
+            }
 
-            // get roll, pitch, and yaw estimation for this scan
-            if (currentImuTime <= timeScanCur)
-                imuRPY2rosRPY(&thisImuMsg, &cloudInfo.imu_roll_init, &cloudInfo.imu_pitch_init, &cloudInfo.imu_yaw_init);
             if (currentImuTime > timeScanEnd + 0.01)
                 break;
 
@@ -400,10 +402,11 @@ public:
     void odomDeskewInfo()
     {
         cloudInfo.odom_available = false;
+        static float sync_diff_time = (imuRate >= 300) ? 0.01 : 0.20;
 
         while (!odomQueue.empty())
         {
-            if (stamp2Sec(odomQueue.front().header.stamp) < timeScanCur - 0.01)
+            if (stamp2Sec(odomQueue.front().header.stamp) < timeScanCur - sync_diff_time)
                 odomQueue.pop_front();
             else
                 break;
