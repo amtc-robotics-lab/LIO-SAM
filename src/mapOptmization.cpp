@@ -151,8 +151,15 @@ public:
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> br;
 
+    std::shared_ptr<tf2_ros::Buffer> tfBuffer;
+    std::shared_ptr<tf2_ros::TransformListener> tfListener;
+
     mapOptimization(const rclcpp::NodeOptions & options) : ParamServer("lio_sam_mapOptimization", options)
     {
+
+        tfBuffer = std::make_shared<tf2_ros::Buffer>(get_clock());
+        tfListener = std::make_shared<tf2_ros::TransformListener>(*tfBuffer);
+
         ISAM2Params parameters;
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
@@ -1650,15 +1657,42 @@ public:
         laserOdometryROS.pose.pose.orientation = quat_msg;
         pubLaserOdometryGlobal->publish(laserOdometryROS);
 
+
+
         // Publish TF
         quat_tf.setRPY(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         tf2::Transform t_odom_to_lidar = tf2::Transform(quat_tf, tf2::Vector3(transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5]));
+        tf2::Transform t_odom_to_base;
+
+        if(lidarFrame != baselinkFrame)
+        {
+            tf2::Stamped<tf2::Transform> lidar2Baselink;
+            try
+            {
+                tf2::fromMsg(tfBuffer->lookupTransform(
+                    lidarFrame, baselinkFrame, rclcpp::Time(0), rclcpp::Duration::from_seconds(0)), lidar2Baselink);
+            }
+            catch (tf2::TransformException ex)
+            {
+                RCLCPP_ERROR(get_logger(), "%s", ex.what());
+            }
+            t_odom_to_base = t_odom_to_lidar* lidar2Baselink;
+        }else{
+            t_odom_to_base = t_odom_to_lidar;
+        }
+        
         tf2::TimePoint time_point = tf2_ros::fromRclcpp(timeLaserInfoStamp);
-        tf2::Stamped<tf2::Transform> temp_odom_to_lidar(t_odom_to_lidar, time_point, odometryFrame);
+        tf2::Stamped<tf2::Transform> temp_odom_to_base(t_odom_to_base, time_point, odometryFrame);
         geometry_msgs::msg::TransformStamped trans_odom_to_lidar;
-        tf2::convert(temp_odom_to_lidar, trans_odom_to_lidar);
-        trans_odom_to_lidar.child_frame_id = "lidar_link";
+        tf2::convert(temp_odom_to_base, trans_odom_to_lidar);
+        trans_odom_to_lidar.child_frame_id = baselinkFrame;
         br->sendTransform(trans_odom_to_lidar);
+
+        tf2::Stamped<tf2::Transform> temp_odom_to_lidar(t_odom_to_lidar, time_point, odometryFrame);
+        tf2::convert(temp_odom_to_lidar, trans_odom_to_lidar);
+        trans_odom_to_lidar.child_frame_id = "registered_lidar_frame";
+        br->sendTransform(trans_odom_to_lidar);
+
 
         // Publish odometry for ROS (incremental)
         static bool lastIncreOdomPubFlag = false;
@@ -1728,18 +1762,18 @@ public:
         {
             pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
             PointTypePose thisPose6D = trans2PointTypePose(transformTobeMapped);
-            *cloudOut += *transformPointCloud(laserCloudCornerLastDS,  &thisPose6D);
-            *cloudOut += *transformPointCloud(laserCloudSurfLastDS,    &thisPose6D);
-            publishCloud(pubRecentKeyFrame, cloudOut, timeLaserInfoStamp, odometryFrame);
+            *cloudOut += *laserCloudCornerLastDS ;// *transformPointCloud(laserCloudCornerLastDS,  &thisPose6D);
+            *cloudOut += *laserCloudSurfLastDS; // *transformPointCloud(laserCloudSurfLastDS,    &thisPose6D);
+            publishCloud(pubRecentKeyFrame, cloudOut, timeLaserInfoStamp, "registered_lidar_frame");
         }
         // publish registered high-res raw cloud
         if (pubCloudRegisteredRaw->get_subscription_count() != 0)
         {
             pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
             pcl::fromROSMsg(cloudInfo.cloud_deskewed, *cloudOut);
-            PointTypePose thisPose6D = trans2PointTypePose(transformTobeMapped);
-            *cloudOut = *transformPointCloud(cloudOut,  &thisPose6D);
-            publishCloud(pubCloudRegisteredRaw, cloudOut, timeLaserInfoStamp, odometryFrame);
+            // PointTypePose thisPose6D = trans2PointTypePose(transformTobeMapped);
+            // *cloudOut = *transformPointCloud(cloudOut,  &thisPose6D);
+            publishCloud(pubCloudRegisteredRaw, cloudOut, timeLaserInfoStamp, "registered_lidar_frame");
         }
         // publish path
         if (pubPath->get_subscription_count() != 0)
