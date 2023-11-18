@@ -74,6 +74,7 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /lio_sam/mapping/cloud_registered
@@ -85,19 +86,39 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        base_link:
+        slp_14h_001/base_link:
           Value: true
-        chassis_link:
+        slp_14h_001/base_link/front_laser_2d_sensor:
           Value: true
-        imu_link:
+        slp_14h_001/base_link/rear_laser_2d_sensor:
           Value: true
-        map:
+        slp_14h_001/bucket_arm_link:
           Value: true
-        navsat_link:
+        slp_14h_001/bucket_mobile_link:
           Value: true
-        odom:
+        slp_14h_001/bucket_tip_link:
           Value: true
-        os0_32/os_sensor:
+        slp_14h_001/front_base_link:
+          Value: true
+        slp_14h_001/front_base_link/front_laser_3d_sensor:
+          Value: true
+        slp_14h_001/front_laser_2d_sensor:
+          Value: true
+        slp_14h_001/front_laser_3d_sensor:
+          Value: true
+        slp_14h_001/front_left_wheel:
+          Value: true
+        slp_14h_001/front_right_wheel:
+          Value: true
+        slp_14h_001/front_tag_base_link:
+          Value: true
+        slp_14h_001/odom:
+          Value: true
+        slp_14h_001/rear_laser_2d_sensor:
+          Value: true
+        slp_14h_001/rear_left_wheel:
+          Value: true
+        slp_14h_001/rear_right_wheel:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -105,9 +126,32 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        map:
-          odom:
-            {}
+        slp_14h_001/odom:
+          slp_14h_001/base_link:
+            slp_14h_001/base_link/front_laser_2d_sensor:
+              slp_14h_001/front_laser_2d_sensor:
+                {}
+            slp_14h_001/base_link/rear_laser_2d_sensor:
+              slp_14h_001/rear_laser_2d_sensor:
+                {}
+            slp_14h_001/front_base_link:
+              slp_14h_001/bucket_arm_link:
+                slp_14h_001/bucket_mobile_link:
+                  slp_14h_001/bucket_tip_link:
+                    {}
+              slp_14h_001/front_base_link/front_laser_3d_sensor:
+                slp_14h_001/front_laser_3d_sensor:
+                  {}
+              slp_14h_001/front_left_wheel:
+                {}
+              slp_14h_001/front_right_wheel:
+                {}
+              slp_14h_001/front_tag_base_link:
+                {}
+            slp_14h_001/rear_left_wheel:
+              {}
+            slp_14h_001/rear_right_wheel:
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -133,6 +177,7 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /lio_sam/mapping/path
@@ -176,6 +221,7 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: System Default
         Value: /points
@@ -185,7 +231,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: map
+    Fixed Frame: slp_14h_001/odom
     Frame Rate: 30
   Name: root
   Tools:
@@ -197,6 +243,9 @@ Visualization Manager:
     - Class: rviz_default_plugins/Measure
       Line color: 128; 128; 0
     - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -259,5 +308,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1848
-  X: 72
-  Y: 27
+  X: 748
+  Y: 103

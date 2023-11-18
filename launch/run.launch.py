@@ -13,7 +13,7 @@ def generate_launch_description():
 
     share_dir = get_package_share_directory('lio_sam')
     parameter_file = LaunchConfiguration('params_file')
-    xacro_path = os.path.join(share_dir, 'config', 'robot.urdf.xacro')
+    # xacro_path = os.path.join(share_dir, 'config', 'robot.urdf.xacro')
     rviz_config_file = os.path.join(share_dir, 'config', 'rviz2.rviz')
 
     params_declare = DeclareLaunchArgument(
@@ -22,34 +22,26 @@ def generate_launch_description():
             share_dir, 'config', 'params.yaml'),
         description='FPath to the ROS2 parameters file to use.')
 
-    print("urdf_file_name : {}".format(xacro_path))
+    # print("urdf_file_name : {}".format(xacro_path))
 
     return LaunchDescription([
         params_declare,
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments='0.0 0.0 0.0 0.0 0.0 0.0 map odom'.split(' '),
-            parameters=[parameter_file],
-            output='screen'
-            ),
-        Node(
-            package='robot_state_publisher',
-            executable='robot_state_publisher',
-            name='robot_state_publisher',
-            output='screen',
-            parameters=[{
-                'robot_description': Command(['xacro', ' ', xacro_path])
-            }]
-        ),
-        Node(
-            package="laser_filters",
-            executable="scan_to_scan_filter_chain",
-            parameters=[
-                PathJoinSubstitution([
-                    get_package_share_directory("laser_filters"),
-                    "examples", "footprint_filter_example.yaml",
-                ]),
+        # Node(
+        #     package='tf2_ros',
+        #     executable='static_transform_publisher',
+        #     arguments='0.0 0.0 0.0 0.0 0.0 0.0 map odom'.split(' '),
+        #     parameters=[parameter_file],
+        #     output='screen'
+        #     ),
+        # Node(
+        #     package='robot_state_publisher',
+        #     executable='robot_state_publisher',
+        #     name='robot_state_publisher',
+        #     output='screen',
+        #     parameters=[{
+        #         'robot_description': Command(['xacro', ' ', xacro_path])
+        #     }]
+        # ),
         Node(
             package='lio_sam',
             executable='lio_sam_imuPreintegration',
@@ -86,11 +78,11 @@ def generate_launch_description():
             output='screen'
         ), 
         PushRosNamespace('slp_14h_001'),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('slp14h_description'),
-                    'launch/description.launch.py'))
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         os.path.join(
+        #             get_package_share_directory('slp14h_description'),
+        #             'launch/description.launch.py'))
+        # ),
 
     ])

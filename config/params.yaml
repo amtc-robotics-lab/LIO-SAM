@@ -2,15 +2,15 @@
   ros__parameters:
     use_sim_time: true
     # Topics
-    pointCloudTopic: "/X1/front_laser_3d_sensor/points"                   # Point cloud data
+    pointCloudTopic: "/slp_14h_001/MODELING/laser_3d_sensor_processed"                   # Point cloud data
     imuTopic: "/SENSOR/os_cloud_node/imu"                        # IMU data
     odomTopic: "odometry/imu"                    # IMU pre-preintegration odometry, same frequency as IMU
     gpsTopic: "odometry/gpsz"                    # GPS odometry topic from navsat, see module_navsat.launch file
 
     # Frames
-    lidarFrame: "X1/front_laser_3d_laser"
-    baselinkFrame: "X1/front_laser_3d_laser"
-    odometryFrame: "odom"
+    lidarFrame: "slp_14h_001/front_laser_3d_sensor"
+    baselinkFrame: "slp_14h_001/base_link"
+    odometryFrame: "slp_14h_001/odom"
     mapFrame: "map"
 
     # GPS Settings
