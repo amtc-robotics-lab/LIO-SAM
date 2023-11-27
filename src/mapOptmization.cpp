@@ -1662,7 +1662,12 @@ public:
         // Publish TF
         quat_tf.setRPY(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         tf2::Transform t_odom_to_lidar = tf2::Transform(quat_tf, tf2::Vector3(transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5]));
+        tf2::Transform t_map_to_lidar = tf2::Transform(quat_tf, tf2::Vector3(transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5]));
+
         tf2::Transform t_odom_to_base;
+        tf2::Transform t_map_to_base;
+
+        tf2::Transform t_map_to_odom;
 
         if(lidarFrame != baselinkFrame)
         {
@@ -1677,22 +1682,41 @@ public:
                 RCLCPP_ERROR(get_logger(), "%s", ex.what());
             }
             t_odom_to_base = t_odom_to_lidar* lidar2Baselink;
+            t_map_to_base = t_map_to_lidar* lidar2Baselink;
+
+
+            tf2::Stamped<tf2::Transform> baselink2odom;
+            try
+            {
+                tf2::fromMsg(tfBuffer->lookupTransform(
+                    baselinkFrame, "slp_14h_001/odom", rclcpp::Time(0), rclcpp::Duration::from_seconds(0)), baselink2odom);
+            }
+            catch (tf2::TransformException ex)
+            {
+                RCLCPP_ERROR(get_logger(), "%s", ex.what());
+            }
+            t_map_to_odom = t_map_to_base* baselink2odom;
+
+
         }else{
             t_odom_to_base = t_odom_to_lidar;
         }
         
         tf2::TimePoint time_point = tf2_ros::fromRclcpp(timeLaserInfoStamp);
-        tf2::Stamped<tf2::Transform> temp_odom_to_base(t_odom_to_base, time_point, odometryFrame);
         geometry_msgs::msg::TransformStamped trans_odom_to_lidar;
-        tf2::convert(temp_odom_to_base, trans_odom_to_lidar);
-        trans_odom_to_lidar.child_frame_id = baselinkFrame;
-        br->sendTransform(trans_odom_to_lidar);
+        geometry_msgs::msg::TransformStamped trans_map_to_odom;
+
+        // construct stamped message
+        tf2::Stamped<tf2::Transform> temp_map_to_odom(t_map_to_odom, time_point, odometryFrame);
+        // convert msg to TransformStamped
+        tf2::convert(temp_map_to_odom, trans_map_to_odom);
+        trans_map_to_odom.child_frame_id = "slp_14h_001/odom";
+        br->sendTransform(trans_map_to_odom);
 
         tf2::Stamped<tf2::Transform> temp_odom_to_lidar(t_odom_to_lidar, time_point, odometryFrame);
         tf2::convert(temp_odom_to_lidar, trans_odom_to_lidar);
         trans_odom_to_lidar.child_frame_id = "registered_lidar_frame";
         br->sendTransform(trans_odom_to_lidar);
-
 
         // Publish odometry for ROS (incremental)
         static bool lastIncreOdomPubFlag = false;

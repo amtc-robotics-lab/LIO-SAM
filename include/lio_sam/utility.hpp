@@ -173,6 +173,8 @@ public:
         get_parameter("odometryFrame", odometryFrame);
         declare_parameter("mapFrame", "map");
         get_parameter("mapFrame", mapFrame);
+        declare_parameter("extraOdomFrame", "odom");
+        get_parameter("extraOdomFrame", extraOdomFrame);
 
         declare_parameter("useImuHeadingInitialization", false);
         get_parameter("useImuHeadingInitialization", useImuHeadingInitialization);
