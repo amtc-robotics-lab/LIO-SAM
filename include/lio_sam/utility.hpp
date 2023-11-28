@@ -80,6 +80,7 @@ public:
     string baselinkFrame;
     string odometryFrame;
     string mapFrame;
+    string extraOdomFrame;
 
     // GPS Settings
     bool useImuHeadingInitialization;

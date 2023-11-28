@@ -1689,7 +1689,7 @@ public:
             try
             {
                 tf2::fromMsg(tfBuffer->lookupTransform(
-                    baselinkFrame, "slp_14h_001/odom", rclcpp::Time(0), rclcpp::Duration::from_seconds(0)), baselink2odom);
+                    baselinkFrame, extraOdomFrame, rclcpp::Time(0), rclcpp::Duration::from_seconds(0)), baselink2odom);
             }
             catch (tf2::TransformException ex)
             {
@@ -1710,7 +1710,7 @@ public:
         tf2::Stamped<tf2::Transform> temp_map_to_odom(t_map_to_odom, time_point, odometryFrame);
         // convert msg to TransformStamped
         tf2::convert(temp_map_to_odom, trans_map_to_odom);
-        trans_map_to_odom.child_frame_id = "slp_14h_001/odom";
+        trans_map_to_odom.child_frame_id = extraOdomFrame;
         br->sendTransform(trans_map_to_odom);
 
         tf2::Stamped<tf2::Transform> temp_odom_to_lidar(t_odom_to_lidar, time_point, odometryFrame);
