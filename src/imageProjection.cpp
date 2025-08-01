@@ -1,5 +1,7 @@
 #include "utility.hpp"
 #include "lio_sam/msg/cloud_info.hpp"
+#include <rcl/event_callback.h>
+#include <rclcpp/logging.hpp>
 
 struct VelodynePointXYZIRT
 {
@@ -29,6 +31,31 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(OusterPointXYZIRT,
     (uint32_t, t, t) (uint16_t, reflectivity, reflectivity)
     (uint8_t, ring, ring) (uint16_t, noise, noise) (uint32_t, range, range)
 )
+namespace seyond {
+
+struct EIGEN_ALIGN16 PointXYZIT {
+  PCL_ADD_POINT4D;
+  double timestamp;
+  float intensity;
+  std::uint8_t flags;
+  std::uint8_t elongation;
+  std::uint16_t scan_id;
+  std::uint16_t scan_idx;
+  std::uint8_t is_2nd_return;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace seyond
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(
+    seyond::PointXYZIT,
+    (float, x, x)(float, y, y)(float, z, z)
+    (double, timestamp, timestamp)
+    (float, intensity, intensity)
+    (std::uint8_t, flags, flags)
+    (std::uint8_t, elongation, elongation)
+    (std::uint16_t, scan_id, scan_id)
+    (std::uint16_t, scan_idx, scan_idx)
+    (std::uint8_t, is_2nd_return, is_2nd_return))
 
 // Use the Velodyne point format as a common representation
 using PointXYZIRT = VelodynePointXYZIRT;
@@ -71,6 +98,7 @@ private:
 
     pcl::PointCloud<PointXYZIRT>::Ptr laserCloudIn;
     pcl::PointCloud<OusterPointXYZIRT>::Ptr tmpOusterCloudIn;
+    pcl::PointCloud<seyond::PointXYZIT>::Ptr   tmpSeyondCloudIn;
     pcl::PointCloud<PointType>::Ptr   fullCloud;
     pcl::PointCloud<PointType>::Ptr   extractedCloud;
 
@@ -137,6 +165,7 @@ public:
     {
         laserCloudIn.reset(new pcl::PointCloud<PointXYZIRT>());
         tmpOusterCloudIn.reset(new pcl::PointCloud<OusterPointXYZIRT>());
+        tmpSeyondCloudIn.reset(new pcl::PointCloud<seyond::PointXYZIT>());
         fullCloud.reset(new pcl::PointCloud<PointType>());
         extractedCloud.reset(new pcl::PointCloud<PointType>());
 
@@ -180,6 +209,7 @@ public:
         std::lock_guard<std::mutex> lock1(imuLock);
         imuQueue.push_back(thisImu);
 
+        RCLCPP_INFO(get_logger(), "IMU data");
         // debug IMU data
         // cout << std::setprecision(6);
         // cout << "IMU acc: " << endl;
@@ -253,6 +283,26 @@ public:
                 dst.time = src.t * 1e-9f;
             }
         }
+        else if (sensor == SensorType::SEYOND)
+        {
+            // Convert to Velodyne format
+            // RCLCPP_INFO(get_logger(), "SEYOND , convert to Velodyne format");
+            pcl::moveFromROSMsg(currentCloudMsg, *tmpSeyondCloudIn);
+            laserCloudIn->points.resize(tmpSeyondCloudIn->size());
+            laserCloudIn->is_dense = tmpSeyondCloudIn->is_dense;
+            double start_time = tmpSeyondCloudIn->header.stamp*1e-6;
+            for (size_t i = 0; i < tmpSeyondCloudIn->size(); i++)
+            {
+                auto &src = tmpSeyondCloudIn->points[i];
+                auto &dst = laserCloudIn->points[i];
+                dst.x = src.x;
+                dst.y = src.y;
+                dst.z = src.z;
+                dst.intensity = src.intensity;
+                dst.ring = src.scan_id;
+                dst.time = src.timestamp - start_time;
+            }
+        }
         else
         {
             RCLCPP_ERROR_STREAM(get_logger(), "Unknown sensor type: " << int(sensor));
@@ -263,6 +313,17 @@ public:
         cloudHeader = currentCloudMsg.header;
         timeScanCur = stamp2Sec(cloudHeader.stamp);
         timeScanEnd = timeScanCur + laserCloudIn->points.back().time;
+        if (timeScanEnd - timeScanCur > 1.0){
+            RCLCPP_ERROR(get_logger(), "Scan time is too long %f, please check your sensor configuration!", timeScanEnd - timeScanCur);
+
+            RCLCPP_ERROR_STREAM(get_logger(), "header stamp: " << cloudHeader.stamp.sec << " " << cloudHeader.stamp.nanosec);
+            RCLCPP_ERROR_STREAM(get_logger(), "timeScanCur: " << timeScanCur);
+            RCLCPP_ERROR_STREAM(get_logger(), "timeScanEnd: " << timeScanEnd);
+            RCLCPP_ERROR_STREAM(get_logger(), "laserCloudIn->points.back().time: " << laserCloudIn->points.back().time);
+            RCLCPP_ERROR_STREAM(get_logger(), "laserCloudIn->points[0].time: " << laserCloudIn->points[0].time);
+            rclcpp::shutdown();
+        }
+        
     
         // remove Nan
         vector<int> indices;
@@ -290,7 +351,7 @@ public:
             }
             if (ringFlag == -1)
             {
-                if (sensor == SensorType::VELODYNE) {
+                if (sensor == SensorType::VELODYNE || sensor == SensorType::SEYOND) {
                     ringFlag = 2;
                 } else {
                     RCLCPP_ERROR(get_logger(), "Point cloud ring channel not available, please configure your point cloud data!");
@@ -329,6 +390,10 @@ public:
             stamp2Sec(imuQueue.back().header.stamp) < timeScanEnd)
         {
             RCLCPP_INFO(get_logger(), "Waiting for IMU data ...");
+            RCLCPP_INFO(get_logger(), "stamp2Sec(imuQueue.front().header.stamp): %f", stamp2Sec(imuQueue.front().header.stamp));
+            RCLCPP_INFO(get_logger(), "timeScanCur: %f", timeScanCur);
+            RCLCPP_INFO(get_logger(), "stamp2Sec(imuQueue.back().header.stamp): %f", stamp2Sec(imuQueue.back().header.stamp));
+            RCLCPP_INFO(get_logger(), "timeScanEnd: %f", timeScanEnd);
             return false;
         }
 
@@ -602,8 +667,9 @@ public:
             {
                 columnIdn = columnIdnCountVec[rowIdn];
                 columnIdnCountVec[rowIdn] += 1;
+            } else if (sensor == SensorType::SEYOND) {
+              columnIdn = tmpSeyondCloudIn->points[i].scan_idx;
             }
-
 
             if (columnIdn < 0 || columnIdn >= Horizon_SCAN)
                 continue;
@@ -668,6 +734,8 @@ int main(int argc, char** argv)
 
     exec.spin();
 
+
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "\033[1;32m----> Image Projection Ended.\033[0m");
     rclcpp::shutdown();
     return 0;
 }
