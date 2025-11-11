@@ -77,12 +77,5 @@ def generate_launch_description():
             arguments=['-d', rviz_config_file],
             output='screen'
         ), 
-        PushRosNamespace('slp_14h_001'),
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(
-        #         os.path.join(
-        #             get_package_share_directory('slp14h_description'),
-        #             'launch/description.launch.py'))
-        # ),
 
     ])
